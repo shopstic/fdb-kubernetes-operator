@@ -7564,6 +7564,8 @@ spec:
               type: string
             storageServersPerPod:
               type: integer
+            logServersPerPod:
+              type: integer
             trustedCAs:
               items:
                 type: string
@@ -8597,6 +8599,10 @@ spec:
             runningVersion:
               type: string
             storageServersPerDisk:
+              items:
+                type: integer
+              type: array
+            logServersPerDisk:
               items:
                 type: integer
               type: array

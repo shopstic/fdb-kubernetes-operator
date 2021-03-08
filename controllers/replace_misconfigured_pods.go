@@ -170,6 +170,18 @@ func instanceNeedsRemoval(cluster *fdbtypes.FoundationDBCluster, instance FdbIns
 		}
 	}
 
+	if instance.GetProcessClass() == fdbtypes.ProcessClassLog {
+		// Replace the instance if the log servers differ
+		logServersPerPod, err := getStorageServersPerPodForInstance(&instance)
+		if err != nil {
+			return false, err
+		}
+
+		if logServersPerPod != cluster.GetLogServersPerPod() {
+			return true, nil
+		}
+	}
+
 	expectedNodeSelector := cluster.GetProcessSettings(instance.GetProcessClass()).PodTemplate.Spec.NodeSelector
 	if !equality.Semantic.DeepEqual(instance.Pod.Spec.NodeSelector, expectedNodeSelector) {
 		return true, nil
