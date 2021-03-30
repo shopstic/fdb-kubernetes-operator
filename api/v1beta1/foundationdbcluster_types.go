@@ -363,6 +363,10 @@ type FoundationDBClusterStatus struct {
 	// If there are more than one value in the slice the reconcile phase is not finished.
 	StorageServersPerDisk []int `json:"storageServersPerDisk,omitempty"`
 
+	// LogServersPerDisk defines the logServersPerPod observed in the cluster.
+	// If there are more than one value in the slice the reconcile phase is not finished.
+	LogServersPerDisk []int `json:"logServersPerDisk,omitempty"`
+
 	// ProcessGroups contain information about a process group.
 	// This information is used in multiple places to trigger the according action.
 	ProcessGroups []*ProcessGroupStatus `json:"processGroups,omitempty"`
@@ -1315,13 +1319,33 @@ func (cluster *FoundationDBCluster) CheckReconciliation() (bool, error) {
 	return reconciled, nil
 }
 
-// GetStorageServersPerPod returns the StorageServer per Pod.
 func (cluster *FoundationDBCluster) GetStorageServersPerPod() int {
 	if cluster.Spec.StorageServersPerPod <= 1 {
 		return 1
 	}
 
 	return cluster.Spec.StorageServersPerPod
+}
+
+func (cluster *FoundationDBCluster) GetLogServersPerPod() int {
+	if cluster.Spec.LogServersPerPod <= 1 {
+		return 1
+	}
+
+	return cluster.Spec.LogServersPerPod
+}
+
+// GetServersPerPod returns the StorageServer per Pod.
+func (cluster *FoundationDBCluster) GetServersPerPod(processClass ProcessClass) int {
+	if processClass == ProcessClassStorage {
+		return cluster.GetStorageServersPerPod()
+	}
+
+	if processClass == ProcessClassLog {
+		return cluster.GetLogServersPerPod()
+	}
+
+	return 1
 }
 
 // CountsAreSatisfied checks whether the current counts of processes satisfy
@@ -2576,4 +2600,14 @@ func (clusterStatus *FoundationDBClusterStatus) AddStorageServerPerDisk(serversP
 	}
 
 	clusterStatus.StorageServersPerDisk = append(clusterStatus.StorageServersPerDisk, serversPerDisk)
+}
+
+func (clusterStatus *FoundationDBClusterStatus) AddLogServerPerDisk(serversPerDisk int) {
+	for _, curServersPerDisk := range clusterStatus.LogServersPerDisk {
+		if curServersPerDisk == serversPerDisk {
+			return
+		}
+	}
+
+	clusterStatus.LogServersPerDisk = append(clusterStatus.LogServersPerDisk, serversPerDisk)
 }

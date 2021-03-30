@@ -257,7 +257,7 @@ func (r *FoundationDBClusterReconciler) updatePodDynamicConf(cluster *fdbtypes.F
 	}
 
 	serversPerPod := 1
-	if instance.GetProcessClass() == fdbtypes.ProcessClassStorage {
+	if canHaveMultipleServersPerPod(instance.GetProcessClass()) {
 		serversPerPod, err = getStorageServersPerPodForInstance(&instance)
 		if err != nil {
 			return false, err
@@ -414,6 +414,31 @@ func setMonitorConfForFilename(cluster *fdbtypes.FoundationDBCluster, data map[s
 	return nil
 }
 
+func GetServersPerDisk(cluster *fdbtypes.FoundationDBCluster, processClass fdbtypes.ProcessClass) []int {
+	if processClass == fdbtypes.ProcessClassStorage {
+		storageServersPerDisk := cluster.Status.StorageServersPerDisk
+		// If the status field is not initialized we fallback to only the specified count
+		// in the cluster spec. This should only happen in the initial phase of a new cluster.
+		if len(cluster.Status.StorageServersPerDisk) == 0 {
+			storageServersPerDisk = []int{cluster.GetServersPerPod(processClass)}
+		}
+		return storageServersPerDisk
+	}
+
+	if processClass == fdbtypes.ProcessClassLog {
+		logServersPerDisk := cluster.Status.LogServersPerDisk
+		// If the status field is not initialized we fallback to only the specified count
+		// in the cluster spec. This should only happen in the initial phase of a new cluster.
+		if len(cluster.Status.StorageServersPerDisk) == 0 {
+			logServersPerDisk = []int{cluster.GetServersPerPod(processClass)}
+		}
+		return logServersPerDisk
+	}
+
+	return nil
+}
+
+
 // GetConfigMap builds a config map for a cluster's dynamic config
 func GetConfigMap(cluster *fdbtypes.FoundationDBCluster) (*corev1.ConfigMap, error) {
 	data := make(map[string]string)
@@ -442,13 +467,8 @@ func GetConfigMap(cluster *fdbtypes.FoundationDBCluster) (*corev1.ConfigMap, err
 
 	for processClass, count := range desiredCounts {
 		if count > 0 {
-			if processClass == fdbtypes.ProcessClassStorage {
-				storageServersPerDisk := cluster.Status.StorageServersPerDisk
-				// If the status field is not initialized we fallback to only the specified count
-				// in the cluster spec. This should only happen in the initial phase of a new cluster.
-				if len(cluster.Status.StorageServersPerDisk) == 0 {
-					storageServersPerDisk = []int{cluster.GetStorageServersPerPod()}
-				}
+			if canHaveMultipleServersPerPod(processClass) {
+				storageServersPerDisk := GetServersPerDisk(cluster, processClass)
 
 				for _, serversPerPod := range storageServersPerDisk {
 					var filename string

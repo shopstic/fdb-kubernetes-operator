@@ -86,10 +86,7 @@ func GetService(cluster *fdbtypes.FoundationDBCluster, processClass fdbtypes.Pro
 	metadata.Name = name
 	metadata.OwnerReferences = owner
 
-	processesPerPod := 1
-	if processClass == fdbtypes.ProcessClassStorage {
-		processesPerPod = cluster.GetStorageServersPerPod()
-	}
+	processesPerPod := cluster.GetServersPerPod(processClass)
 
 	return &corev1.Service{
 		ObjectMeta: metadata,
@@ -253,8 +250,8 @@ func GetPodSpec(cluster *fdbtypes.FoundationDBCluster, processClass fdbtypes.Pro
 		return nil, err
 	}
 
-	if processClass == fdbtypes.ProcessClassStorage && cluster.GetStorageServersPerPod() > 1 {
-		sidecarContainer.Env = append(sidecarContainer.Env, corev1.EnvVar{Name: "STORAGE_SERVERS_PER_POD", Value: fmt.Sprintf("%d", cluster.GetStorageServersPerPod())})
+	if cluster.GetServersPerPod(processClass) > 1 {
+		sidecarContainer.Env = append(sidecarContainer.Env, corev1.EnvVar{Name: "STORAGE_SERVERS_PER_POD", Value: fmt.Sprintf("%d", cluster.GetServersPerPod(processClass))})
 	}
 
 	var mainVolumeSource corev1.VolumeSource
@@ -273,8 +270,8 @@ func GetPodSpec(cluster *fdbtypes.FoundationDBCluster, processClass fdbtypes.Pro
 	}
 
 	monitorConf := fmt.Sprintf("fdbmonitor-conf-%s", processClass)
-	if processClass == fdbtypes.ProcessClassStorage && cluster.GetStorageServersPerPod() > 1 {
-		monitorConf = fmt.Sprintf("fdbmonitor-conf-%s-density-%d", processClass, cluster.GetStorageServersPerPod())
+	if cluster.GetServersPerPod(processClass) > 1 {
+		monitorConf = fmt.Sprintf("fdbmonitor-conf-%s-density-%d", processClass, cluster.GetServersPerPod(processClass))
 	}
 
 	configMapItems := []corev1.KeyToPath{
@@ -584,6 +581,10 @@ func usePvc(cluster *fdbtypes.FoundationDBCluster, processClass fdbtypes.Process
 		}
 	}
 	return isStateful(processClass) && (storage == nil || !storage.IsZero())
+}
+
+func canHaveMultipleServersPerPod(processClass fdbtypes.ProcessClass) bool {
+	return processClass == fdbtypes.ProcessClassStorage || processClass == fdbtypes.ProcessClassLog
 }
 
 // isStateful determines whether a process class should store data.

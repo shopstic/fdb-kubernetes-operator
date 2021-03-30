@@ -8622,6 +8622,10 @@ spec:
                   items:
                     type: integer
                   type: array
+                logServersPerDisk:
+                  items:
+                    type: integer
+                  type: array
               type: object
           type: object
       served: true

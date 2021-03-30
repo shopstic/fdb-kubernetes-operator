@@ -50,6 +50,7 @@ func (s UpdateStatus) Reconcile(r *FoundationDBClusterReconciler, context ctx.Co
 
 	// Initialize with the current desired storage servers per Pod
 	status.StorageServersPerDisk = []int{cluster.GetStorageServersPerPod()}
+	status.LogServersPerDisk = []int{cluster.GetLogServersPerPod()}
 
 	var databaseStatus *fdbtypes.FoundationDBStatus
 	processMap := make(map[string][]fdbtypes.FoundationDBStatusProcessInfo)
@@ -303,6 +304,7 @@ func (s UpdateStatus) Reconcile(r *FoundationDBClusterReconciler, context ctx.Co
 
 	// Sort the storage servers per Disk to prevent a reodering to issue a new reconcile loop.
 	sort.Ints(status.StorageServersPerDisk)
+	sort.Ints(status.LogServersPerDisk)
 
 	originalStatus := cluster.Status.DeepCopy()
 
@@ -519,6 +521,15 @@ func validateInstances(r *FoundationDBClusterReconciler, context ctx.Context, cl
 			}
 
 			status.AddStorageServerPerDisk(processCount)
+		}
+
+		if processClass == fdbtypes.ProcessClassLog {
+			processCount, err = getStorageServersPerPodForInstance(&instance)
+			if err != nil {
+				return processGroups, err
+			}
+
+			status.AddLogServerPerDisk(processCount)
 		}
 
 		if isBeingRemoved {
