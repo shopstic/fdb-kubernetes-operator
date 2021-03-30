@@ -270,6 +270,8 @@ type FoundationDBClusterSpec struct {
 	// storage processes
 	StorageServersPerPod int `json:"storageServersPerPod,omitempty"`
 
+	LogServersPerPod     int `json:"logServersPerPod,omitempty"`
+
 	// MinimumUptimeSecondsForBounce defines the minimum time, in seconds, that the
 	// processes in the cluster must have been up for before the operator can
 	// execute a bounce.
